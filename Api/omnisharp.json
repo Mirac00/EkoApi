@@ -1,0 +1,7 @@
+// omnisharp.json
+
+{
+  "msbuild": {
+    "useBundledOnly": true
+  }
+}
