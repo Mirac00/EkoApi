@@ -2,11 +2,14 @@ using Api.Authorization;
 using Api.Helpers;
 using Api.Services;
 using Microsoft.EntityFrameworkCore;
-using Api.Authorization;
-using Api.Helpers;
-using Api.Services;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.OpenApi.Models;
 using Swashbuckle.AspNetCore.SwaggerUI;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -33,6 +36,27 @@ var builder = WebApplication.CreateBuilder(args);
     // configure DI for application services
     services.AddScoped<IJwtUtils, JwtUtils>();
     services.AddScoped<IUserService, UserService>();
+    // ...
+    services.AddScoped<IPostService, PostService>();
+    // ...
+
+    // Add authentication services
+    services.AddAuthentication(options =>
+    {
+        options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+        options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+    })
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.ASCII.GetBytes(builder.Configuration["AppSettings:Secret"])),
+            ValidateIssuer = false,
+            ValidateAudience = false,
+            ClockSkew = TimeSpan.Zero
+        };
+    });
 
     // Add Swagger generation
     services.AddSwaggerGen(c =>
@@ -86,6 +110,13 @@ using (var scope = app.Services.CreateScope())
     // global error handler
     app.UseMiddleware<ErrorHandlerMiddleware>();
 
+    // Enable routing
+    app.UseRouting();
+
+    // Enable authentication and authorization
+    app.UseAuthentication();
+    app.UseAuthorization();
+
     // custom jwt auth middleware
     app.UseMiddleware<JwtMiddleware>();
 
@@ -98,7 +129,11 @@ using (var scope = app.Services.CreateScope())
         c.DocExpansion(DocExpansion.None);
     });
 
-    app.MapControllers();
+    // Enable endpoints
+    app.UseEndpoints(endpoints =>
+    {
+        endpoints.MapControllers();
+    });
 }
 
 app.Run();

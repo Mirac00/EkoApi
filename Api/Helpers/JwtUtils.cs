@@ -7,68 +7,72 @@ using System.Text;
 using Api.Entities;
 using Api.Helpers;
 
-namespace Api.Authorization;
-
-
-public interface IJwtUtils
+namespace Api.Authorization
 {
-    public string GenerateToken(User user);
-    public int? ValidateToken(string token);
-}
-
-public class JwtUtils : IJwtUtils
-{
-    private readonly AppSettings _appSettings;
-
-    public JwtUtils(IOptions<AppSettings> appSettings)
+    public interface IJwtUtils
     {
-        _appSettings = appSettings.Value;
+        string GenerateToken(User user);
+        int? ValidateToken(string token);
     }
 
-    public string GenerateToken(User user)
+    public class JwtUtils : IJwtUtils
     {
-        // generate token that is valid for 7 days
-        var tokenHandler = new JwtSecurityTokenHandler();
-        var key = Encoding.ASCII.GetBytes(_appSettings.Secret);
-        var tokenDescriptor = new SecurityTokenDescriptor
+        private readonly AppSettings _appSettings;
+
+        public JwtUtils(IOptions<AppSettings> appSettings)
         {
-            Subject = new ClaimsIdentity(new[] { new Claim("id", user.Id.ToString()) }),
-            Expires = DateTime.UtcNow.AddDays(7),
-            SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
-        };
-        var token = tokenHandler.CreateToken(tokenDescriptor);
-        return tokenHandler.WriteToken(token);
-    }
-
-    public int? ValidateToken(string token)
-    {
-        if (token == null)
-            return null;
-
-        var tokenHandler = new JwtSecurityTokenHandler();
-        var key = Encoding.ASCII.GetBytes(_appSettings.Secret);
-        try
-        {
-            tokenHandler.ValidateToken(token, new TokenValidationParameters
-            {
-                ValidateIssuerSigningKey = true,
-                IssuerSigningKey = new SymmetricSecurityKey(key),
-                ValidateIssuer = false,
-                ValidateAudience = false,
-                // set clockskew to zero so tokens expire exactly at token expiration time (instead of 5 minutes later)
-                ClockSkew = TimeSpan.Zero
-            }, out SecurityToken validatedToken);
-
-            var jwtToken = (JwtSecurityToken)validatedToken;
-            var userId = int.Parse(jwtToken.Claims.First(x => x.Type == "id").Value);
-
-            // return user id from JWT token if validation successful
-            return userId;
+            _appSettings = appSettings.Value;
         }
-        catch
+
+        public string GenerateToken(User user)
         {
-            // return null if validation fails
-            return null;
+            var tokenHandler = new JwtSecurityTokenHandler();
+            var key = Encoding.ASCII.GetBytes(_appSettings.Secret);
+
+            var tokenDescriptor = new SecurityTokenDescriptor
+            {
+                Subject = new ClaimsIdentity(new[] { new Claim("id", user.Id.ToString()) }),
+                Expires = DateTime.UtcNow.AddHours(1), // Set the token expiration time
+                SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
+            };
+
+            var token = tokenHandler.CreateToken(tokenDescriptor);
+            return tokenHandler.WriteToken(token);
+        }
+
+        public int? ValidateToken(string token)
+        {
+            if (token == null)
+                return null;
+
+            var tokenHandler = new JwtSecurityTokenHandler();
+            var key = Encoding.ASCII.GetBytes(_appSettings.Secret);
+
+            try
+            {
+                var validationParameters = new TokenValidationParameters
+                {
+                    ValidateIssuerSigningKey = true,
+                    IssuerSigningKey = new SymmetricSecurityKey(key),
+                    ValidateIssuer = false,
+                    ValidateAudience = false,
+                    // Set clock skew to zero so tokens expire exactly at token expiration time (instead of 5 minutes later)
+                    ClockSkew = TimeSpan.Zero
+                };
+
+                SecurityToken validatedToken;
+                var principal = tokenHandler.ValidateToken(token, validationParameters, out validatedToken);
+
+                var jwtToken = (JwtSecurityToken)validatedToken;
+                var userId = int.Parse(jwtToken.Claims.First(x => x.Type == "id").Value);
+
+                return userId;
+            }
+            catch (Exception ex)
+            {
+                // Handle exceptions here (e.g., log them)
+                return null;
+            }
         }
     }
 }
