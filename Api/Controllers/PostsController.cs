@@ -29,7 +29,7 @@ namespace Api.Controllers
         [HttpGet]
         public IActionResult GetAll()
         {
-            var posts = _postService.GetAll();
+            var posts = _postService.GetAllWithUser();
             return Ok(posts);
         }
 

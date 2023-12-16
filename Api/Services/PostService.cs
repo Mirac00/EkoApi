@@ -2,6 +2,7 @@
 using Api.Entities;
 using Api.Helpers;
 using Api.Models.Posts;
+using Microsoft.EntityFrameworkCore;
 
 namespace Api.Services
 {
@@ -12,6 +13,7 @@ namespace Api.Services
         Post GetById(int id);
         void Update(int id, UpdatePostRequest model, int userId);
         void Delete(int id, int userId);
+        IEnumerable<Post> GetAllWithUser();
     }
 
     public class PostService : IPostService
@@ -34,6 +36,11 @@ namespace Api.Services
 
             _context.Posts.Add(post);
             _context.SaveChanges();
+        }
+
+        public IEnumerable<Post> GetAllWithUser()
+        {
+            return _context.Posts.Include(p => p.User);
         }
 
         public IEnumerable<Post> GetAll()
