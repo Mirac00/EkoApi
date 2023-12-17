@@ -27,6 +27,13 @@ public class UsersController : ControllerBase
         _appSettings = appSettings.Value;
     }
 
+    [HttpGet("GetUserByToken")]
+    public IActionResult GetUserByToken()
+    {
+        var user = _userService.GetUserByToken(HttpContext.Request.Headers["Authorization"]);
+        return Ok(user);
+    }
+
     [AllowAnonymous]
     [HttpPost("authenticate")]
     public IActionResult Authenticate(AuthenticateRequest model)

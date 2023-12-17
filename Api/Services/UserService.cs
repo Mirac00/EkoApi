@@ -5,6 +5,7 @@ using Api.Authorization;
 using Api.Entities;
 using Api.Helpers;
 using Api.Models.Users;
+using System.IdentityModel.Tokens.Jwt;
 
 namespace Api.Services
 {
@@ -16,6 +17,7 @@ namespace Api.Services
         void Register(RegisterRequest model);
         void Update(int id, UpdateRequest model);
         void Delete(int id);
+        User GetUserByToken(string token);
     }
 
     public class UserService : IUserService
@@ -34,6 +36,12 @@ namespace Api.Services
             _mapper = mapper;
         }
 
+        public User GetUserByToken(string token)
+        {
+            var jwtToken = new JwtSecurityToken(token.Replace("Bearer ", ""));
+            var userId = int.Parse(jwtToken.Claims.First(x => x.Type == "id").Value);
+            return GetById(userId);
+        }
         public AuthenticateResponse Authenticate(AuthenticateRequest model)
         {
             var user = _context.Users.SingleOrDefault(x => x.Username == model.Username);
